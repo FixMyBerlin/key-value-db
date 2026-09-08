@@ -6,11 +6,10 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function jsonResponse(status: number, body: unknown, headers?: HeadersInit): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...headers },
-  })
+function jsonResponse(status: number, body: unknown, extraHeaders?: HeadersInit): Response {
+  const headers = new Headers(extraHeaders)
+  headers.set('Content-Type', 'application/json')
+  return new Response(JSON.stringify(body), { status, headers })
 }
 
 function emptyResponse(status: number): Response {
