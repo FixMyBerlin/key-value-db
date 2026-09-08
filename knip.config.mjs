@@ -31,7 +31,15 @@ export default {
       entry: ['src/index.ts', 'test/**/*.ts', 'vitest.config.mts'],
     },
     'apps/demo': {
-      entry: ['src/main.ts', 'src/main.tsx', 'src/router.tsx', 'src/routes/**', 'vite.config.ts'],
+      entry: [
+        'src/main.ts',
+        'src/main.tsx',
+        'src/router.tsx',
+        'src/routes/**',
+        'src/**/*.test.ts',
+        'vite.config.ts',
+        'vitest.config.ts',
+      ],
     },
     'packages/kv-client': {
       entry: ['src/index.ts', '**/*.test.ts', 'vitest.config.mts'],
