@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "FORCE_COLOR=1 bun --bun vite dev",
-    "build": "bun --bun vite build",
+    "build": "bun --bun vite build && cp dist/index.html dist/404.html",
     "preview": "bun --bun vite preview",
     "type-check": "tsc --noEmit -p tsconfig.json",
     "test-run": "vitest run --passWithNoTests"

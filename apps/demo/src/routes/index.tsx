@@ -1,14 +1,93 @@
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { fetchHealth, isKvConfigured, kv } from '../lib/kv'
+import { isOsmOAuthConfigured, loginWithOsm, waitForOsmAuth } from '../lib/osmAuth'
 
 export const Route = createFileRoute('/')({
   component: HomePage,
 })
 
 function HomePage() {
+  const healthQuery = useQuery({ queryKey: ['health'], queryFn: () => fetchHealth() })
+  const authQuery = useQuery({ queryKey: ['osm-session'], queryFn: waitForOsmAuth })
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: () => kv.me(),
+    enabled: authQuery.data === true && isKvConfigured(),
+  })
+
   return (
-    <main>
-      <h1>key-value-db demo</h1>
-      <p>{__BUILD_SHA__}</p>
+    <main className="space-y-4">
+      <h1 className="text-2xl font-semibold">key-value-db demo</h1>
+      <p className="text-sm text-zinc-600">
+        Project <code>{import.meta.env.VITE_KV_PROJECT}</code> · API{' '}
+        <code>{import.meta.env.VITE_KV_BASE_URL}</code>
+      </p>
+
+      {!isOsmOAuthConfigured() && (
+        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">
+          Register a non-confidential OSM OAuth 2 application (scope <code>read_prefs</code>) with
+          redirect URIs
+          <code className="block">http://127.0.0.1:33477/key-value-db/osm-oauth-land.html</code>
+          <code className="block">
+            https://fixmyberlin.github.io/key-value-db/osm-oauth-land.html
+          </code>
+          then paste the client id into <code>apps/demo/.env.development</code> as{' '}
+          <code>VITE_OSM_OAUTH_CLIENT_ID</code>. Leave <code>REPLACE_ME</code> out of production
+          until that is done.
+        </div>
+      )}
+
+      {!isKvConfigured() && (
+        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">
+          Create the local <code>demo</code> project (see README) and paste <code>api_key</code>{' '}
+          into <code>apps/demo/.env.development</code> as <code>VITE_KV_API_KEY</code>. The project
+          origin must include <code>http://127.0.0.1:33477</code>.
+        </div>
+      )}
+
+      <section className="rounded border p-3 text-sm">
+        <h2 className="font-medium">API health</h2>
+        {healthQuery.isPending && <p>Loading…</p>}
+        {healthQuery.error && <p className="text-red-700">{String(healthQuery.error)}</p>}
+        {healthQuery.data && (
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            <dt>ok</dt>
+            <dd>{String(healthQuery.data.ok)}</dd>
+            <dt>schema</dt>
+            <dd>{healthQuery.data.schema ?? '—'}</dd>
+            <dt>commit</dt>
+            <dd>{healthQuery.data.commit ?? '—'}</dd>
+            <dt>time</dt>
+            <dd>{healthQuery.data.time ?? '—'}</dd>
+          </dl>
+        )}
+      </section>
+
+      <section className="rounded border p-3 text-sm">
+        <h2 className="font-medium">OSM session</h2>
+        {isOsmOAuthConfigured() && authQuery.data !== true && (
+          <button
+            type="button"
+            className="mt-2 rounded border px-2 py-1"
+            onClick={() => loginWithOsm()}
+          >
+            Log in with OSM
+          </button>
+        )}
+        {meQuery.isPending && authQuery.data === true && <p>Loading /me…</p>}
+        {meQuery.error && <p className="text-red-700">{String(meQuery.error)}</p>}
+        {meQuery.data && (
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            <dt>uid</dt>
+            <dd>{meQuery.data.user.osm_uid}</dd>
+            <dt>display_name</dt>
+            <dd>{meQuery.data.user.display_name}</dd>
+            <dt>can_write</dt>
+            <dd>{String(meQuery.data.can_write)}</dd>
+          </dl>
+        )}
+      </section>
     </main>
   )
 }

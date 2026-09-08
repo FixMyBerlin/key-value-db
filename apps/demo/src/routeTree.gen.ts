@@ -9,34 +9,64 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as EntriesIdRouteImport } from './routes/entries/$id'
+import { Route as EntriesIndexRouteImport } from './routes/entries/index'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TagsRouteImport } from './routes/tags'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TagsRoute = TagsRouteImport.update({
+  id: '/tags',
+  path: '/tags',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntriesIndexRoute = EntriesIndexRouteImport.update({
+  id: '/entries/',
+  path: '/entries/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntriesIdRoute = EntriesIdRouteImport.update({
+  id: '/entries/$id',
+  path: '/entries/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/tags': typeof TagsRoute
+  '/entries/$id': typeof EntriesIdRoute
+  '/entries/': typeof EntriesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/tags': typeof TagsRoute
+  '/entries/$id': typeof EntriesIdRoute
+  '/entries': typeof EntriesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/tags': typeof TagsRoute
+  '/entries/$id': typeof EntriesIdRoute
+  '/entries/': typeof EntriesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/tags' | '/entries/$id' | '/entries/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/tags' | '/entries/$id' | '/entries'
+  id: '__root__' | '/' | '/tags' | '/entries/$id' | '/entries/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TagsRoute: typeof TagsRoute
+  EntriesIdRoute: typeof EntriesIdRoute
+  EntriesIndexRoute: typeof EntriesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tags': {
+      id: '/tags'
+      path: '/tags'
+      fullPath: '/tags'
+      preLoaderRoute: typeof TagsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entries/': {
+      id: '/entries/'
+      path: '/entries'
+      fullPath: '/entries/'
+      preLoaderRoute: typeof EntriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entries/$id': {
+      id: '/entries/$id'
+      path: '/entries/$id'
+      fullPath: '/entries/$id'
+      preLoaderRoute: typeof EntriesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TagsRoute: TagsRoute,
+  EntriesIdRoute: EntriesIdRoute,
+  EntriesIndexRoute: EntriesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
