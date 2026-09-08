@@ -1,8 +1,15 @@
 import { Hono } from 'hono'
+import { adminRoutes } from './admin/routes'
+import { entriesApi } from './api/entries'
 import { health } from './api/health'
+import { meApi } from './api/me'
+import { tagsApi } from './api/tags'
+import { adminAuth } from './auth/adminAuth'
+import { projectAuth, type AppEnv } from './auth/projectAuth'
 import { ApiError, jsonError } from './http/errors'
+import { mcpFetch } from './mcp/server'
 
-export const app = new Hono<{ Bindings: Env }>()
+export const app = new Hono<AppEnv>()
 
 app.onError((err, c) => {
   console.error(err)
@@ -20,3 +27,11 @@ app.use('*', async (c, next) => {
 })
 
 app.route('/', health)
+app.route('/', adminRoutes)
+
+app.all('/mcp', adminAuth, (c) => mcpFetch(c.req.raw, c.env, c.executionCtx as never))
+
+app.use('/v1/projects/:slug/*', projectAuth)
+app.route('/v1/projects/:slug', meApi)
+app.route('/v1/projects/:slug', entriesApi)
+app.route('/v1/projects/:slug', tagsApi)

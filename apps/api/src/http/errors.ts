@@ -27,6 +27,7 @@ export class ApiError extends Error {
 }
 
 export function jsonError(c: Context, err: ApiError) {
+  if (err.code === 'rate_limited') c.header('Retry-After', '60')
   return c.json(
     {
       error: {
