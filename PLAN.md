@@ -1,4 +1,3 @@
-
 # Key-Value API for SPAs on Cloudflare Workers + D1, with a demo SPA on GitHub Pages (monorepo)
 
 Sections 1 to 4 explain *what* is built and *how Cloudflare runs it* in plain language (you have not used Cloudflare before, so Section 2 and 4.5 are deliberately explanatory). Sections 5 onwards are the technical specification another model can implement from. Section 10 is the monorepo layout, Section 11 the demo SPA on GitHub Pages, Section 12 how code reaches Cloudflare and GitHub Pages, Section 13 the hostname question, Section 14 the free-tier budget.

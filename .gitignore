@@ -1,29 +1,8 @@
-# Dependencies
-node_modules/
-
-# Cloudflare / wrangler
-.wrangler/
+node_modules
+.wrangler
 .dev.vars
-.dev.vars.*
-!.dev.vars.example
-apps/api/dist/
-
-# Vite
-apps/demo/dist/
-.vite/
-
-# Env (public VITE_* values are committed in apps/demo/.env.*; local overrides are not)
-.env
-.env.local
-.env.*.local
-
-# Agent / editor
-.cursor/plans/
-.claude/*
-!.claude/settings.json
-.idea/
-.vscode-test/
-
-# OS / logs
-*.log
+dist
+.tsbuildinfo*
 .DS_Store
+bun-debug.log
+coverage

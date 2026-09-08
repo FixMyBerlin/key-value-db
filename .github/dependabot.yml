@@ -1,0 +1,47 @@
+# Private OSS: first Friday of the month. No Docker ecosystem.
+version: 2
+updates:
+  - package-ecosystem: bun
+    directories:
+      - /
+    schedule:
+      interval: cron
+      cronjob: '0 7 * * FRI#1'
+      timezone: Europe/Berlin
+    cooldown:
+      default-days: 5
+    open-pull-requests-limit: 1
+    exclude-paths:
+      - .cursor/**
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      bun-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+      bun-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        patterns:
+          - '*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: cron
+      cronjob: '0 7 * * FRI#1'
+      timezone: Europe/Berlin
+    cooldown:
+      default-days: 5
+    open-pull-requests-limit: 1
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+        patterns:
+          - '*'

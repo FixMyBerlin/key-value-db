@@ -1,0 +1,7 @@
+@import '@fontsource-variable/inter';
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+
+body {
+  font-family: 'Inter Variable', system-ui, sans-serif;
+}
