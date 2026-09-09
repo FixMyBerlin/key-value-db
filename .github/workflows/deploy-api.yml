@@ -7,6 +7,8 @@ on:
       - 'apps/api/**'
       - 'packages/kv-client/**'
       - '.github/workflows/deploy-api.yml'
+      - 'knip.config.mjs'
+      - 'oxfmt.config.mjs'
   workflow_dispatch:
     inputs:
       dry_run:
