@@ -71,8 +71,20 @@ jobs:
         env:
           KV_HOST: ${{ vars.KV_HOST }}
         run: |
-          curl -fsS --retry 5 --retry-delay 2 "https://$KV_HOST/v1/health" \
-            | jq -e --arg sha "$GITHUB_SHA" '.ok and .commit == $sha'
+          # curl --retry only covers transport failures; the first 200 can still be the previous version.
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            body=$(curl -fsS --retry 3 --retry-delay 2 "https://$KV_HOST/v1/health") || {
+              sleep 3
+              continue
+            }
+            if printf '%s' "$body" | jq -e --arg sha "$GITHUB_SHA" '.ok and .commit == $sha' >/dev/null; then
+              printf '%s\n' "$body"
+              exit 0
+            fi
+            echo "health sha mismatch (attempt $i): $body"
+            sleep 3
+          done
+          exit 1
       - name: Step summary
         if: always()
         working-directory: .
