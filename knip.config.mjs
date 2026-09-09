@@ -35,7 +35,13 @@ export default {
       ignoreDependencies: ['cloudflare'],
     },
     'apps/demo': {
-      entry: ['src/main.tsx', 'src/routes/**', 'src/**/*.test.ts', 'vite.config.ts', 'vitest.config.ts'],
+      entry: [
+        'src/main.tsx',
+        'src/routes/**',
+        'src/**/*.test.ts',
+        'vite.config.ts',
+        'vitest.config.ts',
+      ],
       ignoreDependencies: ['tailwind-merge', 'eslint-plugin-compat'],
     },
     'packages/kv-client': {
