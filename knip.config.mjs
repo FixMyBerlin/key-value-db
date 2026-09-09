@@ -8,9 +8,7 @@
 const strict = process.env.KNIP_STRICT === '1'
 
 export default {
-  ignore: ['.agents/**', 'apps/demo/src/routeTree.gen.ts', 'apps/api/worker-configuration.d.ts'],
-  ignoreBinaries: ['code', 'gh', 'rg'],
-  ignoreUnresolved: ['cloudflare:test', 'cloudflare:workers'],
+  ignoreExportsUsedInFile: true,
   rules: {
     files: 'error',
     dependencies: 'error',
@@ -25,21 +23,20 @@ export default {
   workspaces: {
     '.': {
       entry: [],
-      ignoreDependencies: ['vitest'],
+      ignoreDependencies: [
+        'vitest',
+        'eslint-plugin-compat',
+        '@typescript/typescript-darwin-arm64',
+        '@typescript/typescript-linux-x64',
+      ],
     },
     'apps/api': {
       entry: ['src/index.ts', 'test/**/*.ts', 'vitest.config.mts'],
+      ignoreDependencies: ['cloudflare'],
     },
     'apps/demo': {
-      entry: [
-        'src/main.ts',
-        'src/main.tsx',
-        'src/router.tsx',
-        'src/routes/**',
-        'src/**/*.test.ts',
-        'vite.config.ts',
-        'vitest.config.ts',
-      ],
+      entry: ['src/main.tsx', 'src/routes/**', 'src/**/*.test.ts', 'vite.config.ts', 'vitest.config.ts'],
+      ignoreDependencies: ['tailwind-merge', 'eslint-plugin-compat'],
     },
     'packages/kv-client': {
       entry: ['src/index.ts', '**/*.test.ts', 'vitest.config.mts'],
