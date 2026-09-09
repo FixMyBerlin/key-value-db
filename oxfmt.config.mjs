@@ -30,6 +30,7 @@ export default defineConfig({
     'playwright-report/**',
     'test-results/**',
     'src/routeTree.gen.ts',
+    'apps/demo/src/routeTree.gen.ts',
     'src/prisma/generated/**',
     '.wrangler/**',
     'dist/**',
