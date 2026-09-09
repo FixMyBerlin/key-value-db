@@ -26,23 +26,26 @@ function HomePage() {
 
       {!isOsmOAuthConfigured() && (
         <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">
-          Register a non-confidential OSM OAuth 2 application (scope <code>read_prefs</code>) with
-          redirect URIs
-          <code className="block">http://127.0.0.1:33477/key-value-db/osm-oauth-land.html</code>
+          OSM OAuth is not configured. Register one non-confidential OSM OAuth 2 app (scope{' '}
+          <code>read_prefs</code>) with <em>both</em> redirect URIs (local Vite and GitHub Pages).
+          Paste the client id into <code>apps/demo/.env.development</code> and{' '}
+          <code>.env.production</code> as <code>VITE_OSM_OAUTH_CLIENT_ID</code>.
+          <code className="mt-2 block">
+            http://127.0.0.1:33477/key-value-db/osm-oauth-land.html
+          </code>
           <code className="block">
             https://fixmyberlin.github.io/key-value-db/osm-oauth-land.html
           </code>
-          then paste the client id into <code>apps/demo/.env.development</code> as{' '}
-          <code>VITE_OSM_OAUTH_CLIENT_ID</code>. Leave <code>REPLACE_ME</code> out of production
-          until that is done.
         </div>
       )}
 
       {!isKvConfigured() && (
         <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">
-          Create the local <code>demo</code> project (see README) and paste <code>api_key</code>{' '}
-          into <code>apps/demo/.env.development</code> as <code>VITE_KV_API_KEY</code>. The project
-          origin must include <code>http://127.0.0.1:33477</code>.
+          Create the <code>demo</code> project on the API this page is calling (
+          <code>{import.meta.env.VITE_KV_BASE_URL}</code>) and paste that <code>api_key</code> into
+          the matching env file as <code>VITE_KV_API_KEY</code>. Local wrangler and production D1
+          are separate databases. Allowed origins must include this page’s origin (no path):{' '}
+          <code>http://127.0.0.1:33477</code> and/or <code>https://fixmyberlin.github.io</code>.
         </div>
       )}
 

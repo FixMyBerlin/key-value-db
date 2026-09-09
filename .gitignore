@@ -7,3 +7,4 @@ dist
 bun-debug.log
 coverage
 .cursor
+_secrets.env

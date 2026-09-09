@@ -4,6 +4,7 @@ import { expect, test } from 'vitest'
 test('GET /v1/health is ok with applied schema', async () => {
   const response = await SELF.fetch('http://x/v1/health')
   expect(response.status).toBe(200)
+  expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
   const body = (await response.json()) as {
     ok: boolean
     schema: string | null

@@ -14,19 +14,26 @@ async function latestMigrationName(db: D1Database): Promise<string | null> {
   }
 }
 
+function withPublicCors(response: Response): Response {
+  response.headers.set('Access-Control-Allow-Origin', '*')
+  return response
+}
+
 health.get('/v1/health', async (c) => {
   try {
     await c.env.DB.prepare('SELECT 1').first()
   } catch (err) {
     console.error(err)
-    return c.json({ ok: false, error: 'D1 unavailable' }, 503)
+    return withPublicCors(c.json({ ok: false, error: 'D1 unavailable' }, 503))
   }
 
   const schema = await latestMigrationName(c.env.DB)
-  return c.json({
-    ok: true,
-    time: new Date().toISOString(),
-    schema,
-    commit: BUILD_SHA,
-  })
+  return withPublicCors(
+    c.json({
+      ok: true,
+      time: new Date().toISOString(),
+      schema,
+      commit: BUILD_SHA,
+    }),
+  )
 })
