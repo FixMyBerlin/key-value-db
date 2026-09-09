@@ -50,7 +50,7 @@ jobs:
       - name: Stamp build-info
         run: printf "export const BUILD_SHA = '%s'\n" "$GITHUB_SHA" > src/build-info.ts
       - name: Apply D1 migrations
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -64,9 +64,9 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/api
-          command: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'deploy --dry-run --outdir dist' || 'deploy' }}
+          command: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true && 'deploy --dry-run --outdir dist' || 'deploy' }}
       - name: Assert health
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
         working-directory: .
         env:
           KV_HOST: ${{ vars.KV_HOST }}
