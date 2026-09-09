@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+import { PageGuide } from '../../components/PageGuide'
 import { hourAgoIso, parseEntriesSearch } from '../../lib/entriesSearch'
 import { isKvConfigured, kv } from '../../lib/kv'
 
@@ -44,6 +45,18 @@ function EntriesPage() {
   return (
     <main className="space-y-4">
       <h1 className="text-2xl font-semibold">Entries</h1>
+      <PageGuide title="Records in this project">
+        <p>
+          An entry is one row: an id you choose (<code>note-1</code>, or later{' '}
+          <code>way/123456</code>), a JSON payload, and tags. List is{' '}
+          <code>GET /v1/projects/…/entries</code>. Reads need the public project key and an allowed
+          origin. Writes need OSM login so <code>updated_by</code> is a real user.
+        </p>
+        <p>
+          Filter by tag uses the same API query your map or list UI would. “Match all” is AND;
+          “match any” is OR. Open editor creates or edits by id (upsert).
+        </p>
+      </PageGuide>
       {!isKvConfigured() && <p className="text-sm text-amber-800">API key not configured.</p>}
 
       <form

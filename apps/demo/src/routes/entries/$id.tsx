@@ -2,6 +2,7 @@ import { KvError } from '@kv/client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+import { PageGuide } from '../../components/PageGuide'
 import { parseDemoNoteJson, parseTagList, type DemoNote } from '../../lib/demoNote'
 import { kv } from '../../lib/kv'
 
@@ -112,6 +113,24 @@ function EditorForm({
         </Link>
       </p>
       <h1 className="text-2xl font-semibold">Edit {id}</h1>
+      <PageGuide title="Title, note, tags">
+        <p>
+          <strong>Data JSON</strong> is the payload. This demo only accepts{' '}
+          <code>{'{ "title": "…", "note": "…" }'}</code> so the editor stays tiny. Your app sends
+          whatever JSON it needs (geometry, form state, MapRoulette fields). The API does not care
+          about <code>title</code> or <code>note</code>; those keys are this SPA’s convention.
+        </p>
+        <p>
+          <strong>Tags</strong> are separate strings on the entry, not fields inside the JSON. They
+          exist so you can filter and count without parsing every payload — same idea as OSM tags (
+          <code>highway=path</code>) or labels (<code>status=open</code>, <code>region=berlin</code>
+          ). Type them here when you save. The Tags page only lists what already exists.
+        </p>
+        <p>
+          Save is <code>PUT</code> with OSM Bearer. If two tabs save the same id, version conflict
+          shows your draft vs the server copy (<code>If-Match</code>).
+        </p>
+      </PageGuide>
       {exists && (
         <p className="text-sm text-zinc-600">
           version {version} · created_by {createdBy} · updated_by {updatedBy}
@@ -134,7 +153,7 @@ function EditorForm({
         </div>
       )}
       <label className="block text-sm">
-        Data JSON
+        Data JSON — this demo uses <code>title</code> and optional <code>note</code>
         <textarea
           className="mt-1 min-h-40 w-full rounded border font-mono text-sm"
           value={jsonText}
@@ -142,7 +161,7 @@ function EditorForm({
         />
       </label>
       <label className="block text-sm">
-        Tags (comma or space)
+        Tags — comma or space; filter labels, not keys inside the JSON
         <input
           className="mt-1 w-full rounded border px-2 py-1"
           value={tagsText}

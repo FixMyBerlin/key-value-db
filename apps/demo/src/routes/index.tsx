@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { PageGuide } from '../components/PageGuide'
 import { fetchHealth, isKvConfigured, kv } from '../lib/kv'
 import { isOsmOAuthConfigured, loginWithOsm, waitForOsmAuth } from '../lib/osmAuth'
 
@@ -23,6 +24,23 @@ function HomePage() {
         Project <code>{import.meta.env.VITE_KV_PROJECT}</code> · API{' '}
         <code>{import.meta.env.VITE_KV_BASE_URL}</code>
       </p>
+      <PageGuide title="What this demo is">
+        <p>
+          A reference SPA for apps that have no backend of their own. Users log in with
+          OpenStreetMap in the browser. This Worker stores JSON records per project. Cloudflare runs
+          the API (Worker) and the database (D1 SQLite). GitHub Pages only hosts this static UI.
+        </p>
+        <p>
+          Status is a wiring check, not a product screen. Health is <code>GET /v1/health</code>. OSM
+          session is <code>GET /v1/projects/…/me</code>: which OSM uid the token maps to, and
+          whether they may write. Real apps do the same after login, usually without a dedicated
+          page.
+        </p>
+        <p>
+          Next: Entries are the records; Tags are labels on those records (like OSM tags), not HTML
+          and not a Cloudflare product.
+        </p>
+      </PageGuide>
 
       {!isOsmOAuthConfigured() && (
         <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">

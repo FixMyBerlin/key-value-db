@@ -20,7 +20,7 @@ function RootLayout() {
   return (
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col gap-6 p-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex flex-wrap gap-3 text-sm">
+        <nav className="flex flex-wrap gap-3 text-sm" aria-label="Demo">
           <Link to="/" className="underline">
             Status
           </Link>
@@ -37,6 +37,9 @@ function RootLayout() {
         <Outlet />
       </div>
       <footer className="border-t border-zinc-200 pt-3 text-xs text-zinc-600">
+        Teaching SPA for the KV API (Cloudflare Worker + D1). Not the Cloudflare dashboard, and not
+        Cloudflare Workers KV.
+        {' · '}
         Demo build <code>{__BUILD_SHA__}</code>
         {' · '}
         API commit <code>{healthQuery.data?.commit ?? '…'}</code>
