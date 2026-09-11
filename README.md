@@ -4,7 +4,18 @@ A tiny shared **KV API** for OpenStreetMap-authenticated single-page apps, plus 
 
 Each SPA (“project”) stores and reads JSON records with an id and tags. Writes are attributed to a verified OSM user. The API runs as a Cloudflare Worker on D1. You administer projects from Cursor through an MCP endpoint on the same Worker.
 
-This GitHub repo will be **[FixMyBerlin/key-value-db](https://github.com/FixMyBerlin/key-value-db)** (public, AGPL-3.0). The remote is not created by this scaffold.
+Public repo: **[FixMyBerlin/key-value-db](https://github.com/FixMyBerlin/key-value-db)** (AGPL-3.0).
+
+| What                            | URL                                                     |
+| ------------------------------- | ------------------------------------------------------- |
+| API (Worker)                    | https://key-value-store.fixmycity.workers.dev           |
+| Health                          | https://key-value-store.fixmycity.workers.dev/v1/health |
+| Admin MCP                       | https://key-value-store.fixmycity.workers.dev/mcp       |
+| Demo on GitHub Pages            | https://fixmyberlin.github.io/key-value-db/             |
+| Local API (`bun run dev-api`)   | http://localhost:8787                                   |
+| Local demo (`bun run dev-demo`) | http://127.0.0.1:33477/key-value-db/                    |
+
+`KV_HOST` is `key-value-store.fixmycity.workers.dev` (Cloudflare account subdomain **fixmycity**, not fixmyberlin). GitHub environment `cloudflare` has that as the `KV_HOST` variable.
 
 Full design: [PLAN.md](PLAN.md).
 
@@ -16,17 +27,27 @@ Full design: [PLAN.md](PLAN.md).
 | `packages/kv-client` | `@kv/client` | Typed `fetch` client for SPAs.                                                           |
 | `apps/demo`          | `@kv/demo`   | React SPA on GitHub Pages: OSM login and end-to-end API exercise.                        |
 
+## How to add another SPA
+
+1. From Cursor, call MCP `create_project` (or `POST https://key-value-store.fixmycity.workers.dev/admin/projects`) with a slug, name, and origins. Origins are `scheme://host[:port]` with **no path**. Include the production origin and `http://127.0.0.1:<vite-port>` if you develop locally.
+2. Put the returned `api_key` and `https://key-value-store.fixmycity.workers.dev` into the SPA’s public env (`VITE_KV_*` or equivalent). The key is public by design (`X-Api-Key`); origin allowlist plus OSM tokens are what restrict use.
+3. Wire [`packages/kv-client`](packages/kv-client) as in the snippet below. OSM login stays in the SPA (`osm-api` v4 redirect PKCE); the Worker only verifies the Bearer token.
+
+Existing live projects include `demo` (this repo’s Pages app) and others created via MCP. Keep `demo` on `write_access = any_osm_user`.
+
 ## How to test locally
 
 The demo origin **must** be `http://127.0.0.1:33477` (OSM only allows `http` redirect URIs on `127.0.0.1`, and the Vite port is fixed). Do not use `localhost`.
 
+Local D1 is a file under `apps/api/.wrangler/` (gitignored). It is **not** the production database. `apps/demo/.env.development` holds a public project key for **this machine’s** local `demo` row. If you clone the repo elsewhere and get `401 invalid_project_key`, recreate the project (curl below) and paste the new `api_key`.
+
 ```bash
 # terminal 1
 bun install
-cp apps/api/.dev.vars.example apps/api/.dev.vars   # if missing; put a real hex after openssl rand -hex 32
+cp apps/api/.dev.vars.example apps/api/.dev.vars   # if missing; real JSON map, see below
 bun run db-migrate-local
 bun run dev-api
-# terminal 2 — create project (once)
+# terminal 2 — create project (once per local D1)
 curl -sS -X POST http://localhost:8787/admin/projects \
   -H "Authorization: Bearer <admin key from .dev.vars>" \
   -H "Content-Type: application/json" \
@@ -35,23 +56,28 @@ curl -sS -X POST http://localhost:8787/admin/projects \
 # terminal 3
 bun run dev-demo
 # open http://127.0.0.1:33477/key-value-db/  (this is local Vite, not GitHub Pages)
-# unit tests:
 bun run check-ci
-bun run --filter @kv/api test-run
 ```
 
 `ADMIN_KEYS_JSON` in `.dev.vars` and in the Worker secret is a JSON map such as `{"tordans":"<64 hex>"}`. The Bearer value for `curl` and Cursor MCP is the hex string (the map value), not the whole JSON. Do not paste the hex alone into the Cloudflare dashboard secret field.
 
 The demo shows setup banners instead of crashing while `VITE_KV_API_KEY` is still `REPLACE_ME`.
 
+Fire the token-cache cleanup cron against local wrangler with:
+
+```bash
+bunx wrangler dev --test-scheduled
+# then POST http://localhost:8787/__scheduled
+```
+
 ## Demo env files (commit them; do not put them in GitHub Actions)
 
 `apps/demo/.env.development` and `.env.production` are **public config**, checked into git. Vite bakes every `VITE_*` value into the JavaScript bundle. Anyone can read them in DevTools. That is intentional.
 
-| File               | Used when                   | `VITE_KV_BASE_URL`                      | `VITE_KV_API_KEY`                         |
-| ------------------ | --------------------------- | --------------------------------------- | ----------------------------------------- |
-| `.env.development` | `bun run dev-demo`          | local wrangler, `http://localhost:8787` | key from creating `demo` on **local** D1  |
-| `.env.production`  | `vite build` / GitHub Pages | live Worker                             | key from creating `demo` on **remote** D1 |
+| File               | Used when                   | `VITE_KV_BASE_URL`                              | `VITE_KV_API_KEY`                         |
+| ------------------ | --------------------------- | ----------------------------------------------- | ----------------------------------------- |
+| `.env.development` | `bun run dev-demo`          | local wrangler, `http://localhost:8787`         | key from creating `demo` on **local** D1  |
+| `.env.production`  | `vite build` / GitHub Pages | `https://key-value-store.fixmycity.workers.dev` | key from creating `demo` on **remote** D1 |
 
 GitHub Actions does **not** need these as secrets or variables. `deploy-demo.yml` runs `vite build`, which reads `.env.production`. The only extra CI env is `VITE_BUILD_SHA`.
 
@@ -72,37 +98,7 @@ They are two **places the demo runs**, not one URL:
 | Local Vite              | `http://127.0.0.1:33477`                           | `http://127.0.0.1:33477/key-value-db/osm-oauth-land.html`        |
 | GitHub Pages            | `https://fixmyberlin.github.io`                    | `https://fixmyberlin.github.io/key-value-db/osm-oauth-land.html` |
 
-OSM only allows `http` redirects on `127.0.0.1`, not `localhost`, so Vite is pinned to that host and port. After login, OSM sends the browser back to **the land page of the site you started from**. Register **both** URIs on the same OSM OAuth app. `VITE_OSM_OAUTH_CLIENT_ID` is the same in both env files (public PKCE client id).
-
-Fire the token-cache cleanup cron against local wrangler with:
-
-```bash
-bunx wrangler dev --test-scheduled
-# then POST http://localhost:8787/__scheduled
-```
-
-## Create a demo project (curl / admin / MCP)
-
-Create slug `demo` with origins (no path):
-
-- `http://127.0.0.1:33477` — local Vite (`Origin` header)
-- `https://fixmyberlin.github.io` — GitHub Pages (`Origin` is the site origin only)
-
-Against **local** wrangler (`POST http://localhost:8787/admin/projects`, as in the curl above): paste `api_key` into `.env.development`.
-
-Against the **live** Worker (MCP `create_project`, or the same POST on `https://KV_HOST`): paste `api_key` into `.env.production`. Do not reuse a local key on Pages unless you created the row on remote D1.
-
-## Owner Cloudflare / OSM / GitHub steps (not automated)
-
-Do these yourself; this repo does not create remotes, Cloudflare resources, or OAuth apps.
-
-1. Cloudflare account and `workers.dev` subdomain. Hostname is typically `key-value-store.<account>.workers.dev` (`KV_HOST`).
-2. `wrangler d1 create key-value-store --jurisdiction eu` (jurisdiction is fixed at create time). Copy `database_id` into `apps/api/wrangler.jsonc`.
-3. `wrangler secret put ADMIN_KEYS_JSON` (JSON map, e.g. `{"tordans":"<64 hex>"}`). Same value in gitignored `apps/api/.dev.vars`.
-4. API token with Workers Scripts Edit and **D1 Edit**; store as GitHub environment secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Variable `KV_HOST` on the `cloudflare` environment.
-5. OSM OAuth 2 application (non-confidential): **two** redirect URIs on one app — `http://127.0.0.1:33477/key-value-db/osm-oauth-land.html` (local) and `https://fixmyberlin.github.io/key-value-db/osm-oauth-land.html` (Pages). Scope `read_prefs`. Paste the client id into **both** demo env files as `VITE_OSM_OAUTH_CLIENT_ID` (already public; not a GitHub secret).
-6. Create the public GitHub repo FixMyBerlin/key-value-db, enable Pages with source **GitHub Actions**, add the `cloudflare` environment.
-7. First API deploy: `deploy-api` `workflow_dispatch` with `dry_run=true`, then a real push/dispatch. Create the `demo` project on **remote** D1 (MCP or `/admin/projects`) with the origins above; put that `api_key` in `.env.production`.
+OSM only allows `http` redirects on `127.0.0.1`, not `localhost`, so Vite is pinned to that host and port. After login, OSM sends the browser back to **the land page of the site you started from**. Both URIs are registered on the same OSM OAuth app. `VITE_OSM_OAUTH_CLIENT_ID` is the same in both env files (public PKCE client id).
 
 ## SPA integration snippet
 
@@ -120,9 +116,9 @@ const kv = createKvClient<MyData>({
 
 OSM login uses **osm-api v4** in **redirect** PKCE mode (not popup: OSM sends `COOP: same-origin`). Copy `apps/demo/public/osm-oauth-land.html`, derive the redirect URL from `import.meta.env.BASE_URL` + `osm-oauth-land.html`, `await authReady` before `isLoggedIn()`.
 
-## Cursor MCP example
+## Cursor MCP
 
-User-level `~/.cursor/mcp.json` (admin key never in git):
+User-level `~/.cursor/mcp.json` (admin key never in git). Live:
 
 ```json
 {
@@ -135,16 +131,24 @@ User-level `~/.cursor/mcp.json` (admin key never in git):
 }
 ```
 
-Local wrangler: use `http://localhost:8787/mcp` with the same Bearer key from `.dev.vars`.
-
-## Placeholders
-
-- **`KV_HOST`**: Worker hostname, typically `key-value-store.<account>.workers.dev` until a custom domain exists. Set in the GitHub environment and in the demo’s public env when you deploy.
+Local wrangler: `http://localhost:8787/mcp` with the same Bearer key from `.dev.vars`.
 
 ## Secrets (never in git)
 
 - **`ADMIN_KEYS_JSON`**: Cloudflare Worker secret (`wrangler secret put ADMIN_KEYS_JSON`) **and** local `apps/api/.dev.vars` (gitignored). Copy from `apps/api/.dev.vars.example`. **Never commit the real value.**
-- GitHub Actions **does not** get the admin key. The `cloudflare` environment only needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (plus `KV_HOST` as a variable when deploys exist).
+- GitHub Actions **does not** get the admin key. The `cloudflare` environment holds `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and variable `KV_HOST=key-value-store.fixmycity.workers.dev`.
+
+## Recreate Cloudflare / OSM / GitHub (disaster recovery)
+
+Owner steps already done for this repo. Repeat only if the account, D1 database, or OSM app is gone.
+
+1. Cloudflare account and `workers.dev` subdomain (`KV_HOST` = `key-value-store.<account>.workers.dev`).
+2. `wrangler d1 create key-value-store --jurisdiction eu` (jurisdiction is fixed at create time). Copy `database_id` into `apps/api/wrangler.jsonc`.
+3. `wrangler secret put ADMIN_KEYS_JSON` (JSON map, e.g. `{"tordans":"<64 hex>"}`). Same value in gitignored `apps/api/.dev.vars`.
+4. API token with Workers Scripts Edit and **D1 Edit**; GitHub environment `cloudflare` secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, variable `KV_HOST`.
+5. OSM OAuth 2 application (non-confidential): redirect URIs `http://127.0.0.1:33477/key-value-db/osm-oauth-land.html` and `https://fixmyberlin.github.io/key-value-db/osm-oauth-land.html`. Scope `read_prefs`. Client id in both demo env files as `VITE_OSM_OAUTH_CLIENT_ID`.
+6. Public GitHub repo, Pages source **GitHub Actions**, environments `cloudflare` and `github-pages`.
+7. `deploy-api` then create `demo` on **remote** D1 (MCP or `/admin/projects`) with origins `http://127.0.0.1:33477` and `https://fixmyberlin.github.io`; put that `api_key` in `.env.production`.
 
 ## License
 
