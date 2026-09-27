@@ -1,4 +1,4 @@
-import { KvError } from '@kv/client'
+import { KvError } from '@osm-editor-kit/key-value-db-client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'

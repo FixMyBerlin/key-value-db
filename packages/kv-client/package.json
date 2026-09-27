@@ -1,17 +1,55 @@
 {
-  "name": "@kv/client",
-  "license": "AGPL-3.0",
+  "name": "@osm-editor-kit/key-value-db-client",
+  "version": "0.0.0",
+  "description": "Typed, dependency-free fetch client for key-value-db: a shared key-value API for OpenStreetMap-authenticated apps (Cloudflare Workers + D1).",
+  "keywords": [
+    "client",
+    "cloudflare",
+    "d1",
+    "key-value",
+    "openstreetmap",
+    "osm"
+  ],
+  "homepage": "https://github.com/FixMyBerlin/key-value-db/tree/main/packages/kv-client#readme",
+  "bugs": {
+    "url": "https://github.com/FixMyBerlin/key-value-db/issues"
+  },
+  "license": "MIT",
+  "author": "Tobias Jordans",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FixMyBerlin/key-value-db.git",
+    "directory": "packages/kv-client"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
-  "types": "./src/index.ts",
+  "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "check-exports": "attw --pack . --ignore-rules cjs-resolves-to-esm no-resolution --profile node16",
+    "prepublishOnly": "bun run build",
     "type-check": "tsc --noEmit -p tsconfig.json",
     "test-run": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@types/bun": "^1.3.0",
     "vitest": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

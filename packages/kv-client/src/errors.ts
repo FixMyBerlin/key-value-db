@@ -1,4 +1,4 @@
-import type { KvErrorCode } from './types'
+import type { KvErrorCode } from './types.js'
 
 const KV_ERROR_CODES = new Set<KvErrorCode>([
   'invalid_project_key',

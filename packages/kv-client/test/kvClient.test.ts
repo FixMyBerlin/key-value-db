@@ -194,3 +194,51 @@ test('remove sends DELETE on the encoded entry id and accepts 204', async () => 
   )
   expect(readInit(fetchMock.mock.calls[0]).method).toBe('DELETE')
 })
+
+test('batch posts puts and deletes and validates the result', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { put: [sampleEntry], deleted: 1 }))
+  vi.stubGlobal('fetch', fetchMock)
+  const client = createKvClient({
+    baseUrl: 'https://kv.example',
+    project: 'demo',
+    apiKey: 'key-1',
+    getOsmToken: () => 'osm-token',
+  })
+  const result = await client.batch({
+    put: [{ id: 'way/1', data: { title: 'hello' } }],
+    delete: ['x'],
+  })
+  expect(result.deleted).toBe(1)
+  expect(readUrl(fetchMock.mock.calls[0])).toBe('https://kv.example/v1/projects/demo/batch')
+  const init = readInit(fetchMock.mock.calls[0])
+  expect(init.method).toBe('POST')
+  expect(JSON.parse(init.body as string)).toEqual({
+    put: [{ id: 'way/1', data: { title: 'hello' } }],
+    delete: ['x'],
+  })
+})
+
+test('removeMine calls DELETE /me/entries', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { deleted: 3 }))
+  vi.stubGlobal('fetch', fetchMock)
+  const client = createKvClient({
+    baseUrl: 'https://kv.example',
+    project: 'demo',
+    apiKey: 'key-1',
+    getOsmToken: () => 'osm-token',
+  })
+  expect(await client.removeMine()).toEqual({ deleted: 3 })
+  expect(readUrl(fetchMock.mock.calls[0])).toBe('https://kv.example/v1/projects/demo/me/entries')
+  expect(readInit(fetchMock.mock.calls[0]).method).toBe('DELETE')
+})
+
+test('rejects a malformed response envelope', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, { items: 'nope' })))
+  const client = createKvClient({
+    baseUrl: 'https://kv.example',
+    project: 'demo',
+    apiKey: 'key-1',
+    getOsmToken: () => null,
+  })
+  await expect(client.list()).rejects.toBeInstanceOf(KvError)
+})
