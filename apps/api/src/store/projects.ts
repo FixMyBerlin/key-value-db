@@ -6,6 +6,8 @@ export type ProjectRow = {
   origins: string
   read_access: 'public' | 'osm_user'
   write_access: 'any_osm_user' | 'allowlist'
+  write_scope: 'any' | 'owner'
+  entry_ttl_s: number | null
   created_at: string
   updated_at: string
   disabled_at: string | null
@@ -34,7 +36,8 @@ export async function getProjectBySlug(db: D1Database, slug: string): Promise<Pr
 
   const row = await db
     .prepare(
-      `SELECT id, slug, name, api_key, origins, read_access, write_access, created_at, updated_at, disabled_at
+      `SELECT id, slug, name, api_key, origins, read_access, write_access, write_scope, entry_ttl_s,
+              created_at, updated_at, disabled_at
        FROM projects WHERE slug = ?`,
     )
     .bind(slug)
@@ -57,7 +60,7 @@ export async function listProjects(db: D1Database) {
   const { results } = await db
     .prepare(
       `SELECT p.id, p.slug, p.name, p.api_key, p.origins, p.read_access, p.write_access,
-              p.created_at, p.updated_at, p.disabled_at,
+              p.write_scope, p.entry_ttl_s, p.created_at, p.updated_at, p.disabled_at,
               (SELECT COUNT(*) FROM entries e WHERE e.project_id = p.id) AS entry_count
        FROM projects p
        ORDER BY p.slug`,
@@ -78,14 +81,16 @@ export async function createProject(
     origins: string[]
     read_access?: 'public' | 'osm_user'
     write_access?: 'any_osm_user' | 'allowlist'
+    write_scope?: 'any' | 'owner'
+    entry_ttl_s?: number | null
   },
 ): Promise<Project> {
   const now = new Date().toISOString()
   const apiKey = randomApiKey()
   await db
     .prepare(
-      `INSERT INTO projects (slug, name, api_key, origins, read_access, write_access, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO projects (slug, name, api_key, origins, read_access, write_access, write_scope, entry_ttl_s, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       input.slug,
@@ -94,6 +99,8 @@ export async function createProject(
       JSON.stringify(input.origins),
       input.read_access ?? 'public',
       input.write_access ?? 'any_osm_user',
+      input.write_scope ?? 'any',
+      input.entry_ttl_s ?? null,
       now,
       now,
     )
@@ -131,6 +138,8 @@ export async function updateProject(
     origins?: string[]
     read_access?: 'public' | 'osm_user'
     write_access?: 'any_osm_user' | 'allowlist'
+    write_scope?: 'any' | 'owner'
+    entry_ttl_s?: number | null
     disabled?: boolean
   },
 ): Promise<Project | null> {
@@ -148,7 +157,8 @@ export async function updateProject(
   await db
     .prepare(
       `UPDATE projects SET
-         name = ?, origins = ?, read_access = ?, write_access = ?, disabled_at = ?, updated_at = ?
+         name = ?, origins = ?, read_access = ?, write_access = ?, write_scope = ?, entry_ttl_s = ?,
+         disabled_at = ?, updated_at = ?
        WHERE slug = ?`,
     )
     .bind(
@@ -156,6 +166,8 @@ export async function updateProject(
       JSON.stringify(patch.origins ?? JSON.parse(current.origins)),
       patch.read_access ?? current.read_access,
       patch.write_access ?? current.write_access,
+      patch.write_scope ?? current.write_scope,
+      patch.entry_ttl_s === undefined ? current.entry_ttl_s : patch.entry_ttl_s,
       disabledAt,
       now,
       slug,

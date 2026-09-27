@@ -31,3 +31,19 @@ export async function getOsmUsersByUids(
   for (const row of results) names.set(row.osm_uid, row.display_name)
   return names
 }
+
+/**
+ * Deletes user records that no entry (any project) and no token cache row refers to.
+ * Keeping users with a cached token avoids 'unknown' display names until the next OSM check.
+ */
+export async function purgeOrphanOsmUsers(db: D1Database) {
+  const result = await db
+    .prepare(
+      `DELETE FROM osm_users
+       WHERE NOT EXISTS (SELECT 1 FROM entries e WHERE e.created_by_osm_uid = osm_users.osm_uid)
+         AND NOT EXISTS (SELECT 1 FROM entries e WHERE e.updated_by_osm_uid = osm_users.osm_uid)
+         AND NOT EXISTS (SELECT 1 FROM verified_tokens t WHERE t.osm_uid = osm_users.osm_uid)`,
+    )
+    .run()
+  return result.meta.changes ?? 0
+}

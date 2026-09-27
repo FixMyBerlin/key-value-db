@@ -12,8 +12,13 @@ import { mcpFetch } from './mcp/server'
 export const app = new Hono<AppEnv>()
 
 app.onError((err, c) => {
+  // Expected client errors (4xx) are answered, not logged: they carry request details
+  // (ids, user ids) that should not end up in Workers Logs.
+  if (err instanceof ApiError) {
+    if (err.status >= 500) console.error(err)
+    return jsonError(c, err)
+  }
   console.error(err)
-  if (err instanceof ApiError) return jsonError(c, err)
   return c.json({ error: { code: 'internal', message: 'Internal error' } }, 500)
 })
 

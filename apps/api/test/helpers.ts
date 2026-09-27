@@ -16,6 +16,8 @@ export async function createTestProject(
     origins?: string[]
     read_access?: 'public' | 'osm_user'
     write_access?: 'any_osm_user' | 'allowlist'
+    write_scope?: 'any' | 'owner'
+    entry_ttl_s?: number | null
   } = {},
 ) {
   const slug = overrides.slug ?? `p-${crypto.randomUUID()}`
@@ -32,6 +34,8 @@ export async function createTestProject(
       ],
       read_access: overrides.read_access,
       write_access: overrides.write_access,
+      write_scope: overrides.write_scope,
+      entry_ttl_s: overrides.entry_ttl_s,
     }),
   })
   const body = (await response.json()) as { api_key: string; slug: string; origins: string[] }
@@ -72,4 +76,17 @@ export function osmOk(id = 12345, displayName = 'tester') {
         headers: { 'Content-Type': 'application/json' },
       }),
   )
+}
+
+/** Stubs OSM user details per Bearer token, e.g. { 'token-a': { id: 1, name: 'alice' } }. */
+export function osmUsers(users: Record<string, { id: number; name: string }>) {
+  return stubOsmFetch((request) => {
+    const token = request.headers.get('Authorization')?.replace(/^Bearer /, '') ?? ''
+    const user = users[token]
+    if (!user) return new Response('unauthorized', { status: 401 })
+    return new Response(JSON.stringify({ user: { id: user.id, display_name: user.name } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  })
 }

@@ -12,7 +12,14 @@ import {
 } from '../admin/tools'
 import { BUILD_SHA } from '../build-info'
 import { ApiError } from '../http/errors'
-import { originSchema, readAccessSchema, slugSchema, writeAccessSchema } from '../schemas/project'
+import {
+  entryTtlSchema,
+  originSchema,
+  readAccessSchema,
+  slugSchema,
+  writeAccessSchema,
+  writeScopeSchema,
+} from '../schemas/project'
 
 function asToolResult(result: unknown) {
   return {
@@ -54,6 +61,14 @@ export function createKvAdminServer(env: Env) {
         origins: z.array(originSchema).min(1),
         read_access: readAccessSchema.optional(),
         write_access: writeAccessSchema.optional(),
+        write_scope: writeScopeSchema
+          .optional()
+          .describe(
+            "'owner': entry ids must start with '<osm_uid>/'; only the creator may change or delete",
+          ),
+        entry_ttl_s: entryTtlSchema
+          .optional()
+          .describe('Hard TTL in seconds for new entries; null = never expire'),
       }),
     },
     async (input) => runTool(() => toolCreateProject(env, input)),
@@ -71,13 +86,24 @@ export function createKvAdminServer(env: Env) {
   server.registerTool(
     'update_project',
     {
-      description: 'Update project settings',
+      description:
+        'Update project settings. The result lists warnings when a change affects existing entries',
       inputSchema: z.object({
         slug: slugSchema,
         name: z.string().min(1).optional(),
         origins: z.array(originSchema).min(1).optional(),
         read_access: readAccessSchema.optional(),
         write_access: writeAccessSchema.optional(),
+        write_scope: writeScopeSchema
+          .optional()
+          .describe(
+            "'owner': entry ids must start with '<osm_uid>/'; only the creator may change or delete",
+          ),
+        entry_ttl_s: entryTtlSchema
+          .optional()
+          .describe(
+            'Hard TTL in seconds for new entries; null = never expire. Applies to new entries only',
+          ),
         disabled: z.boolean().optional(),
       }),
     },

@@ -26,6 +26,8 @@ function publicProject(project: Project, extra?: Record<string, unknown>) {
     origins: project.origins,
     read_access: project.read_access,
     write_access: project.write_access,
+    write_scope: project.write_scope,
+    entry_ttl_s: project.entry_ttl_s,
     created_at: project.created_at,
     updated_at: project.updated_at,
     disabled_at: project.disabled_at,
@@ -75,12 +77,28 @@ export async function toolUpdateProject(env: Env, input: unknown) {
     origins: record.origins,
     read_access: record.read_access,
     write_access: record.write_access,
+    write_scope: record.write_scope,
+    entry_ttl_s: record.entry_ttl_s,
     disabled: record.disabled,
   })
   if (!parsed.success) throw zodApiError(parsed.error)
+  const before = await getProjectBySlug(env.DB, slugParsed.data)
+  if (!before) throw new ApiError(404, 'not_found', 'Project not found')
   const project = await updateProject(env.DB, slugParsed.data, parsed.data)
   if (!project) throw new ApiError(404, 'not_found', 'Project not found')
-  return publicProject(project)
+  const warnings: string[] = []
+  const stats = await getProjectStats(env.DB, project.id)
+  if (before.write_scope !== 'owner' && project.write_scope === 'owner' && stats.entries > 0) {
+    warnings.push(
+      `write_scope is now 'owner' but the project has ${stats.entries} entries. Entries whose id does not start with '<osm_uid>/' can no longer be changed or deleted through the API.`,
+    )
+  }
+  if (before.entry_ttl_s !== project.entry_ttl_s) {
+    warnings.push(
+      'entry_ttl_s applies to new entries only. Existing entries keep their expires_at (or never expire).',
+    )
+  }
+  return publicProject(project, warnings.length > 0 ? { warnings } : undefined)
 }
 
 export async function toolRotateProjectKey(env: Env, input: unknown) {

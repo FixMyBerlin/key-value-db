@@ -11,6 +11,17 @@ export const originSchema = z
 export const readAccessSchema = z.enum(['public', 'osm_user'])
 export const writeAccessSchema = z.enum(['any_osm_user', 'allowlist'])
 
+/** 'owner': entry ids must start with `<osm_uid>/` and only the creator may change or delete them. */
+export const writeScopeSchema = z.enum(['any', 'owner'])
+
+/** Hard TTL for new entries in seconds (max 30 days); null = entries never expire. */
+export const entryTtlSchema = z
+  .number()
+  .int()
+  .min(60)
+  .max(30 * 24 * 60 * 60)
+  .nullable()
+
 export const createProjectSchema = z
   .object({
     slug: slugSchema,
@@ -18,6 +29,8 @@ export const createProjectSchema = z
     origins: z.array(originSchema).min(1),
     read_access: readAccessSchema.optional(),
     write_access: writeAccessSchema.optional(),
+    write_scope: writeScopeSchema.optional(),
+    entry_ttl_s: entryTtlSchema.optional(),
   })
   .strict()
 
@@ -27,6 +40,8 @@ export const updateProjectSchema = z
     origins: z.array(originSchema).min(1).optional(),
     read_access: readAccessSchema.optional(),
     write_access: writeAccessSchema.optional(),
+    write_scope: writeScopeSchema.optional(),
+    entry_ttl_s: entryTtlSchema.optional(),
     disabled: z.boolean().optional(),
   })
   .strict()
