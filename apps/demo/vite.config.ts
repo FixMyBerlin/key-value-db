@@ -5,13 +5,15 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import browserslistToEsbuild from 'browserslist-to-esbuild'
-import { defineConfig } from 'vite'
+import { defaultClientConditions, defineConfig } from 'vite'
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url))
 const bunLinks = path.join(homedir(), '.bun/install/cache/links')
 
 export default defineConfig({
   base: '/key-value-db/',
+  // Workspace packages resolve to their TS source (exports "source" condition), no build needed.
+  resolve: { conditions: ['source', ...defaultClientConditions] },
   plugins: [
     tailwindcss(),
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),

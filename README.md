@@ -17,15 +17,24 @@ Public repo: **[FixMyBerlin/key-value-db](https://github.com/FixMyBerlin/key-val
 
 `KV_HOST` is `key-value-store.fixmycity.workers.dev` (Cloudflare account subdomain **fixmycity**, not fixmyberlin). GitHub environment `cloudflare` has that as the `KV_HOST` variable.
 
-Full design: [PLAN.md](PLAN.md).
+**What it can do** (details in [docs/API.md](docs/API.md)):
+
+- Per-app _projects_ with a public key, origin allowlist, and admin-only settings.
+- JSON entries with tags, versions, and OSM-verified authors. Public or login-only reads.
+- Tag queries (`match=all|any`), `updated_since`, cursor paging, and `If-Match`.
+- Optional **owner-only writes** (`write_scope = owner`) and a **hard time limit** per entry (`entry_ttl_s`).
+- **Batch** writes, and **"delete my data"** per project (`DELETE /me/entries`).
+- A cleanup job every 15 min for expired entries, old token cache rows, and unused user records.
+
+Privacy: [PRIVACY.md](PRIVACY.md). For agents and contributors: [AGENTS.md](AGENTS.md). The original design is in [PLAN.md](PLAN.md); [docs/API.md](docs/API.md) is the current reference.
 
 ## Monorepo map
 
-| Path                 | Package      | Role                                                                                     |
-| -------------------- | ------------ | ---------------------------------------------------------------------------------------- |
-| `apps/api`           | `@kv/api`    | Cloudflare Worker (Hono + D1). REST under `/v1`, admin under `/admin`, MCP under `/mcp`. |
-| `packages/kv-client` | `@kv/client` | Typed `fetch` client for SPAs.                                                           |
-| `apps/demo`          | `@kv/demo`   | React SPA on GitHub Pages: OSM login and end-to-end API exercise.                        |
+| Path                 | Package                               | Role                                                                                     |
+| -------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `apps/api`           | `@kv/api`                             | Cloudflare Worker (Hono + D1). REST under `/v1`, admin under `/admin`, MCP under `/mcp`. |
+| `packages/kv-client` | `@osm-editor-kit/key-value-db-client` | Typed `fetch` client for SPAs.                                                           |
+| `apps/demo`          | `@kv/demo`                            | React SPA on GitHub Pages: OSM login and end-to-end API exercise.                        |
 
 ## How to add another SPA
 
@@ -103,7 +112,7 @@ OSM only allows `http` redirects on `127.0.0.1`, not `localhost`, so Vite is pin
 ## SPA integration snippet
 
 ```ts
-import { createKvClient } from '@kv/client'
+import { createKvClient } from '@osm-editor-kit/key-value-db-client'
 import { getAuthToken } from 'osm-api'
 
 const kv = createKvClient<MyData>({

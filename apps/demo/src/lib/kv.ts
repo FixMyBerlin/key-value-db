@@ -1,4 +1,4 @@
-import { createKvClient } from '@kv/client'
+import { createKvClient } from '@osm-editor-kit/key-value-db-client'
 import type { DemoNote } from './demoNote'
 import { osmAccessToken } from './osmAuth'
 

@@ -1,7 +1,23 @@
-import { kvErrorFromResponse, KvError } from './errors'
-import type { KvClient, KvClientOptions, KvEntry, KvListResult, KvUser } from './types'
+import { kvErrorFromResponse, KvError } from './errors.js'
+import type { KvClient, KvClientOptions } from './types.js'
+import {
+  assertBatch,
+  assertDeleted,
+  assertEntry,
+  assertList,
+  assertMe,
+  assertTags,
+} from './validate.js'
 
-export type { KvClient, KvClientOptions, KvEntry, KvErrorCode, KvListResult, KvUser } from './types'
+export type {
+  KvBatchResult,
+  KvClient,
+  KvClientOptions,
+  KvEntry,
+  KvErrorCode,
+  KvListResult,
+  KvUser,
+} from './types.js'
 export { KvError }
 
 function trimTrailingSlashes(baseUrl: string): string {
@@ -33,11 +49,13 @@ async function requestHeaders(
   return headers
 }
 
-async function parseJson<T>(response: Response): Promise<T> {
+async function parseJson<T>(response: Response, check: (v: unknown) => asserts v is T): Promise<T> {
   if (!response.ok) {
     throw await kvErrorFromResponse(response)
   }
-  return (await response.json()) as T
+  const body: unknown = await response.json()
+  check(body)
+  return body
 }
 
 async function parseEmpty(response: Response): Promise<void> {
@@ -54,6 +72,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<
   const entryUrl = (id: string) => projectUrl(baseUrl, project, 'entries', encodeURIComponent(id))
   const tagsUrl = () => projectUrl(baseUrl, project, 'tags')
   const meUrl = () => projectUrl(baseUrl, project, 'me')
+  const batchUrl = () => projectUrl(baseUrl, project, 'batch')
 
   return {
     async list(params) {
@@ -79,7 +98,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<
         method: 'GET',
         headers: await requestHeaders(apiKey, getOsmToken),
       })
-      return parseJson<KvListResult<T>>(response)
+      return parseJson(response, assertList<T>)
     },
 
     async get(id) {
@@ -87,7 +106,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<
         method: 'GET',
         headers: await requestHeaders(apiKey, getOsmToken),
       })
-      return parseJson<KvEntry<T>>(response)
+      return parseJson(response, assertEntry<T>)
     },
 
     async put(id, data, tags = [], opts) {
@@ -102,7 +121,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<
         headers,
         body: JSON.stringify({ data, tags }),
       })
-      return parseJson<KvEntry<T>>(response)
+      return parseJson(response, assertEntry<T>)
     },
 
     async remove(id) {
@@ -118,7 +137,24 @@ export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<
         method: 'GET',
         headers: await requestHeaders(apiKey, getOsmToken),
       })
-      return parseJson<{ tags: Array<{ tag: string; count: number }> }>(response)
+      return parseJson(response, assertTags)
+    },
+
+    async batch(ops) {
+      const response = await fetch(batchUrl(), {
+        method: 'POST',
+        headers: await requestHeaders(apiKey, getOsmToken, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ put: ops.put ?? [], delete: ops.delete ?? [] }),
+      })
+      return parseJson(response, assertBatch<T>)
+    },
+
+    async removeMine() {
+      const response = await fetch(`${meUrl()}/entries`, {
+        method: 'DELETE',
+        headers: await requestHeaders(apiKey, getOsmToken),
+      })
+      return parseJson(response, assertDeleted)
     },
 
     async me() {
@@ -126,7 +162,7 @@ export function createKvClient<T = unknown>(options: KvClientOptions): KvClient<
         method: 'GET',
         headers: await requestHeaders(apiKey, getOsmToken),
       })
-      return parseJson<{ user: KvUser; can_write: boolean }>(response)
+      return parseJson(response, assertMe)
     },
 
     async forget() {
