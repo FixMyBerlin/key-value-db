@@ -1,5 +1,7 @@
 # Key-Value API for SPAs on Cloudflare Workers + D1, with a demo SPA on GitHub Pages (monorepo)
 
+> **Historical design document.** It describes the original plan and is not updated. For the current API see [docs/API.md](docs/API.md), for privacy see [PRIVACY.md](PRIVACY.md), and for working rules see [AGENTS.md](AGENTS.md).
+
 Sections 1 to 4 explain *what* is built and *how Cloudflare runs it* in plain language (you have not used Cloudflare before, so Section 2 and 4.5 are deliberately explanatory). Sections 5 onwards are the technical specification another model can implement from. Section 10 is the monorepo layout, Section 11 the demo SPA on GitHub Pages, Section 12 how code reaches Cloudflare and GitHub Pages, Section 13 the hostname question, Section 14 the free-tier budget.
 
 The repo is `FixMyBerlin/key-value-db`, public, licensed AGPL-3.0 (same license and `LICENSE.md` text as tilda-geo; `"license": "AGPL-3.0"` in every `package.json`). It is a Bun-workspaces monorepo with three parts:

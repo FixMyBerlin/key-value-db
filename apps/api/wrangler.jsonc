@@ -28,7 +28,8 @@
     },
   ],
   "triggers": {
-    "crons": ["17 3 * * *"],
+    // Every 15 min: expired entries, old token cache rows, orphaned user records.
+    "crons": ["*/15 * * * *"],
   },
   "vars": {
     "OSM_API_BASE": "https://api.openstreetmap.org",
