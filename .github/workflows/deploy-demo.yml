@@ -30,7 +30,7 @@ jobs:
         env:
           VITE_BUILD_SHA: ${{ github.sha }}
         run: bun run --filter @kv/demo build
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v3
         with:
           path: apps/demo/dist
