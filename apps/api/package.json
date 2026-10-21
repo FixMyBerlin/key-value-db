@@ -13,7 +13,7 @@
     "test-run": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/server": "2.3.0",
     "agents": "^0.22.0",
     "hono": "^4.13.0",
     "zod": "^4.5.0"
