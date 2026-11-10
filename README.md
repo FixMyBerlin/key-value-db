@@ -22,7 +22,7 @@ Public repo: **[FixMyBerlin/key-value-db](https://github.com/FixMyBerlin/key-val
 - Per-app _projects_ with a public key, origin allowlist, and admin-only settings.
 - JSON entries with tags, versions, and OSM-verified authors. Public or login-only reads.
 - Tag queries (`match=all|any`), `updated_since`, cursor paging, and `If-Match`.
-- Optional **owner-only writes** (`write_scope = owner`) and a **hard time limit** per entry (`entry_ttl_s`).
+- Optional **write allowlist** (`write_access = allowlist`, OSM users managed with the MCP tools `allow_user` / `disallow_user` / `list_allowed_users`), **owner-only writes** (`write_scope = owner`), and a **hard time limit** per entry (`entry_ttl_s`).
 - **Batch** writes, and **"delete my data"** per project (`DELETE /me/entries`).
 - A cleanup job every 15 min for expired entries, old token cache rows, and unused user records.
 
@@ -94,7 +94,7 @@ GitHub Actions does **not** need these as secrets or variables. `deploy-demo.yml
 
 ### What `VITE_KV_API_KEY` is
 
-It is the project’s public identifier (`kv_` + hex), sent as `X-Api-Key`. It is **not** a login and **not** an admin key. It only selects the project. Browsers from other sites cannot use it because the API also requires an `Origin` on the project allowlist. Writes still need a logged-in OSM user.
+It is the project’s public identifier (`kv_` + hex), sent as `X-Api-Key`. It is **not** a login and **not** an admin key. It only selects the project. Browsers from other sites cannot use it because the API also requires an `Origin` on the project allowlist. Writes still need a logged-in OSM user. The key and the `Origin` check do **not** stop scripts (curl can send any `Origin`), so to limit who can write, set `write_access = allowlist` and add the OSM users with `allow_user`.
 
 Local D1 and production D1 are different databases, so the two env files usually have **different** keys. Paste the key from whichever API you just created the project on.
 

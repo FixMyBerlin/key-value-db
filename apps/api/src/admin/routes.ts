@@ -2,10 +2,13 @@ import { Hono } from 'hono'
 import { adminAuth } from '../auth/adminAuth'
 import { json, readJsonBody } from '../http/json'
 import {
+  toolAllowUser,
   toolCreateProject,
   toolDbStatus,
   toolDeleteProject,
+  toolDisallowUser,
   toolGetProject,
+  toolListAllowedUsers,
   toolListProjects,
   toolRotateProjectKey,
   toolUpdateProject,
@@ -42,3 +45,23 @@ adminRoutes.delete('/admin/projects/:slug', async (c) => {
 })
 
 adminRoutes.get('/admin/db-status', async (c) => json(c, await toolDbStatus(c.env)))
+
+adminRoutes.get('/admin/projects/:slug/allowed-users', async (c) =>
+  json(c, await toolListAllowedUsers(c.env, { slug: c.req.param('slug') })),
+)
+
+adminRoutes.post('/admin/projects/:slug/allowed-users', async (c) => {
+  const body = await readJsonBody(c)
+  const input = typeof body === 'object' && body ? body : {}
+  return json(c, await toolAllowUser(c.env, { ...input, slug: c.req.param('slug') }))
+})
+
+adminRoutes.delete('/admin/projects/:slug/allowed-users/:uid', async (c) =>
+  json(
+    c,
+    await toolDisallowUser(c.env, {
+      slug: c.req.param('slug'),
+      osm_uid: Number(c.req.param('uid')),
+    }),
+  ),
+)

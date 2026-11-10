@@ -51,3 +51,17 @@ export const deleteProjectSchema = z
     confirm_slug: z.string().min(1),
   })
   .strict()
+
+export const osmUidSchema = z.number().int().positive()
+
+/** Identify an OSM user by uid (preferred, stable) or by current display name. */
+export const allowedUserInputSchema = z
+  .object({
+    osm_uid: osmUidSchema.optional(),
+    display_name: z.string().trim().min(1).max(255).optional(),
+  })
+  .strict()
+  .refine((v) => (v.osm_uid === undefined) !== (v.display_name === undefined), {
+    message: 'give exactly one of osm_uid or display_name',
+    path: ['osm_uid'],
+  })

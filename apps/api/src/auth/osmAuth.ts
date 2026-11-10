@@ -1,6 +1,8 @@
 import type { Context, MiddlewareHandler } from 'hono'
 import { isoNow, osmVerifyTtlS } from '../env'
 import { ApiError } from '../http/errors'
+import { isAllowedUser } from '../store/allowedUsers'
+import type { Project } from '../store/projects'
 import { upsertOsmUser } from '../store/users'
 import { deleteVerifiedToken, getVerifiedToken, upsertVerifiedToken } from '../store/verifiedTokens'
 import { fetchOsmUserDetails } from './osmClient'
@@ -90,6 +92,27 @@ export async function verifyOsm(c: Context<AppEnv>): Promise<OsmIdentity> {
 
 export const requireOsm: MiddlewareHandler<AppEnv> = async (c, next) => {
   c.set('osmUser', await verifyOsm(c))
+  await next()
+}
+
+/** False only when the project has write_access = 'allowlist' and the user is not on its list. */
+export async function canWrite(db: D1Database, project: Project, osmUid: number) {
+  if (project.write_access !== 'allowlist') return true
+  return isAllowedUser(db, project.id, osmUid)
+}
+
+/** OSM login plus, for write_access = 'allowlist', membership in the project's allowed users. */
+export const requireWriter: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const user = await verifyOsm(c)
+  if (!(await canWrite(c.env.DB, c.get('project'), user.osm_uid))) {
+    throw new ApiError(
+      403,
+      'forbidden_user',
+      'This project only accepts writes from allowed OSM users',
+      { reason: 'not_on_allowlist', osm_uid: user.osm_uid },
+    )
+  }
+  c.set('osmUser', user)
   await next()
 }
 

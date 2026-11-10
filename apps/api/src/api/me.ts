@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { bearerToken, requireOsm } from '../auth/osmAuth'
+import { bearerToken, canWrite, requireOsm } from '../auth/osmAuth'
 import type { AppEnv } from '../auth/projectAuth'
 import { sha256Hex } from '../auth/timingSafe'
 import { ApiError } from '../http/errors'
@@ -9,17 +9,18 @@ import { deleteVerifiedToken } from '../store/verifiedTokens'
 
 export const meApi = new Hono<AppEnv>()
 
-meApi.get('/me', requireOsm, (c) => {
+meApi.get('/me', requireOsm, async (c) => {
   const user = c.get('osmUser')
   if (!user) {
     return json(c, { user: null, can_write: false }, 401)
   }
-  return json(c, { user, can_write: true })
+  return json(c, { user, can_write: await canWrite(c.env.DB, c.get('project'), user.osm_uid) })
 })
 
 /**
  * "Delete my data" for this project only: removes every entry the user created here.
  * Other projects are not touched. Clients call DELETE /me afterwards to drop the token cache row.
+ * Not limited by write_access = 'allowlist': a user removed from the list can still delete their data.
  */
 meApi.delete('/me/entries', requireOsm, async (c) => {
   const user = c.get('osmUser')

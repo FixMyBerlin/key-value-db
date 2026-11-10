@@ -7,7 +7,14 @@ export async function dbStatus(db: D1Database) {
     migrations = []
   }
 
-  const tables = ['projects', 'osm_users', 'entries', 'entry_tags', 'verified_tokens'] as const
+  const tables = [
+    'projects',
+    'osm_users',
+    'entries',
+    'entry_tags',
+    'verified_tokens',
+    'project_allowed_users',
+  ] as const
   const counts: Record<string, number> = {}
   for (const table of tables) {
     const row = await db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{ n: number }>()

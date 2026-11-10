@@ -11,7 +11,7 @@ test('GET /v1/health is ok with applied schema', async () => {
     commit: string
   }
   expect(body.ok).toBe(true)
-  expect(body.schema).toBe('0002_owner_scope_ttl.sql')
+  expect(body.schema).toBe('0003_project_allowed_users.sql')
   expect(body.commit).toBe('dev')
 })
 

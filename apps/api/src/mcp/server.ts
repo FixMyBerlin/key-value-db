@@ -2,10 +2,13 @@ import { McpServer } from '@modelcontextprotocol/server'
 import { createMcpHandler } from 'agents/mcp/server'
 import { z } from 'zod'
 import {
+  toolAllowUser,
   toolCreateProject,
   toolDbStatus,
   toolDeleteProject,
+  toolDisallowUser,
   toolGetProject,
+  toolListAllowedUsers,
   toolListProjects,
   toolRotateProjectKey,
   toolUpdateProject,
@@ -14,6 +17,7 @@ import { BUILD_SHA } from '../build-info'
 import { ApiError } from '../http/errors'
 import {
   entryTtlSchema,
+  osmUidSchema,
   originSchema,
   readAccessSchema,
   slugSchema,
@@ -60,7 +64,11 @@ export function createKvAdminServer(env: Env) {
         name: z.string().min(1),
         origins: z.array(originSchema).min(1),
         read_access: readAccessSchema.optional(),
-        write_access: writeAccessSchema.optional(),
+        write_access: writeAccessSchema
+          .optional()
+          .describe(
+            "'allowlist': only users added with allow_user may write (create, update, delete, batch)",
+          ),
         write_scope: writeScopeSchema
           .optional()
           .describe(
@@ -93,7 +101,11 @@ export function createKvAdminServer(env: Env) {
         name: z.string().min(1).optional(),
         origins: z.array(originSchema).min(1).optional(),
         read_access: readAccessSchema.optional(),
-        write_access: writeAccessSchema.optional(),
+        write_access: writeAccessSchema
+          .optional()
+          .describe(
+            "'allowlist': only users added with allow_user may write (create, update, delete, batch)",
+          ),
         write_scope: writeScopeSchema
           .optional()
           .describe(
@@ -126,6 +138,46 @@ export function createKvAdminServer(env: Env) {
       inputSchema: z.object({ slug: slugSchema, confirm_slug: z.string() }),
     },
     async (input) => runTool(() => toolDeleteProject(env, input)),
+  )
+
+  const userInputShape = {
+    slug: slugSchema,
+    osm_uid: osmUidSchema.optional().describe('OSM user id (stable). Give this or display_name'),
+    display_name: z
+      .string()
+      .min(1)
+      .optional()
+      .describe('Current OSM display name, resolved to the uid via the OSM API'),
+  }
+
+  server.registerTool(
+    'list_allowed_users',
+    {
+      description:
+        "List the OSM users allowed to write to a project. Only enforced when write_access = 'allowlist'",
+      inputSchema: z.object({ slug: slugSchema }),
+    },
+    async (input) => runTool(() => toolListAllowedUsers(env, input)),
+  )
+
+  server.registerTool(
+    'allow_user',
+    {
+      description:
+        'Allow an OSM user to write to a project (by osm_uid or display_name). Looks the user up on OSM and returns both uid and display name. The check uses the uid only',
+      inputSchema: z.object(userInputShape),
+    },
+    async (input) => runTool(() => toolAllowUser(env, input)),
+  )
+
+  server.registerTool(
+    'disallow_user',
+    {
+      description:
+        "Remove an OSM user from a project's allowed users (by osm_uid or display_name). Their entries stay",
+      inputSchema: z.object(userInputShape),
+    },
+    async (input) => runTool(() => toolDisallowUser(env, input)),
   )
 
   server.registerTool(

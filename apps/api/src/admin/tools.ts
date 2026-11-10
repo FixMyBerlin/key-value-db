@@ -1,11 +1,15 @@
+import { lookupOsmUserByDisplayName, lookupOsmUserById } from '../auth/osmClient'
+import { isoNow } from '../env'
 import { ApiError } from '../http/errors'
 import { zodApiError } from '../http/zod'
 import {
+  allowedUserInputSchema,
   createProjectSchema,
   deleteProjectSchema,
   slugSchema,
   updateProjectSchema,
 } from '../schemas/project'
+import { addAllowedUser, listAllowedUsers, removeAllowedUser } from '../store/allowedUsers'
 import { dbStatus } from '../store/dbStatus'
 import {
   createProject,
@@ -93,6 +97,14 @@ export async function toolUpdateProject(env: Env, input: unknown) {
       `write_scope is now 'owner' but the project has ${stats.entries} entries. Entries whose id does not start with '<osm_uid>/' can no longer be changed or deleted through the API.`,
     )
   }
+  if (before.write_access !== 'allowlist' && project.write_access === 'allowlist') {
+    const allowed = await listAllowedUsers(env.DB, project.id)
+    if (allowed.length === 0) {
+      warnings.push(
+        "write_access is now 'allowlist' but no user is allowed yet, so nobody can write. Add users with allow_user.",
+      )
+    }
+  }
   if (before.entry_ttl_s !== project.entry_ttl_s) {
     warnings.push(
       'entry_ttl_s applies to new entries only. Existing entries keep their expires_at (or never expire).',
@@ -131,4 +143,86 @@ export async function toolDeleteProject(env: Env, input: unknown) {
 
 export async function toolDbStatus(env: Env) {
   return dbStatus(env.DB)
+}
+
+async function requireProject(env: Env, slug: unknown): Promise<Project> {
+  const parsed = slugSchema.safeParse(slug)
+  if (!parsed.success) throw zodApiError(parsed.error)
+  const project = await getProjectBySlug(env.DB, parsed.data)
+  if (!project) throw new ApiError(404, 'not_found', 'Project not found')
+  return project
+}
+
+function allowlistNote(project: Project) {
+  return project.write_access === 'allowlist'
+    ? undefined
+    : `write_access is '${project.write_access}', so this list is not enforced. Set write_access = 'allowlist' to enforce it.`
+}
+
+async function allowedUsersResult(env: Env, project: Project, extra?: Record<string, unknown>) {
+  const note = allowlistNote(project)
+  return {
+    slug: project.slug,
+    write_access: project.write_access,
+    allowed_users: await listAllowedUsers(env.DB, project.id),
+    ...extra,
+    ...(note ? { note } : {}),
+  }
+}
+
+function parseAllowedUserInput(record: Record<string, unknown>) {
+  const parsed = allowedUserInputSchema.safeParse({
+    osm_uid: record.osm_uid,
+    display_name: record.display_name,
+  })
+  if (!parsed.success) throw zodApiError(parsed.error)
+  return parsed.data
+}
+
+/** Looks the user up on OSM so the uid and the current display name are both confirmed. */
+async function resolveOsmUser(env: Env, input: { osm_uid?: number; display_name?: string }) {
+  const result =
+    input.osm_uid === undefined
+      ? await lookupOsmUserByDisplayName(env, input.display_name ?? '')
+      : await lookupOsmUserById(env, input.osm_uid)
+  if (result.kind === 'not_found') {
+    throw new ApiError(404, 'not_found', result.reason)
+  }
+  if (result.kind === 'unavailable') {
+    throw new ApiError(502, 'osm_unavailable', 'OSM user lookup is unavailable, try again later')
+  }
+  return { osm_uid: result.user.id, display_name: result.user.display_name }
+}
+
+export async function toolListAllowedUsers(env: Env, input: unknown) {
+  const record = typeof input === 'object' && input ? (input as Record<string, unknown>) : {}
+  const project = await requireProject(env, record.slug)
+  return allowedUsersResult(env, project)
+}
+
+export async function toolAllowUser(env: Env, input: unknown) {
+  const record = typeof input === 'object' && input ? (input as Record<string, unknown>) : {}
+  const project = await requireProject(env, record.slug)
+  const user = await resolveOsmUser(env, parseAllowedUserInput(record))
+  const added = await addAllowedUser(env.DB, project.id, user, isoNow())
+  return allowedUsersResult(env, project, { user, added })
+}
+
+export async function toolDisallowUser(env: Env, input: unknown) {
+  const record = typeof input === 'object' && input ? (input as Record<string, unknown>) : {}
+  const project = await requireProject(env, record.slug)
+  const userInput = parseAllowedUserInput(record)
+  // Match the stored name note first, so removing works without OSM and after a rename.
+  const allowed = await listAllowedUsers(env.DB, project.id)
+  const match =
+    userInput.osm_uid === undefined
+      ? allowed.find((u) => u.display_name.toLowerCase() === userInput.display_name?.toLowerCase())
+      : allowed.find((u) => u.osm_uid === userInput.osm_uid)
+  const osmUid = match?.osm_uid ?? (await resolveOsmUser(env, userInput)).osm_uid
+  const removed = await removeAllowedUser(env.DB, project.id, osmUid)
+  if (!removed) throw new ApiError(404, 'not_found', 'User is not on the allowlist')
+  return allowedUsersResult(env, project, {
+    user: { osm_uid: osmUid, display_name: match?.display_name ?? null },
+    removed,
+  })
 }

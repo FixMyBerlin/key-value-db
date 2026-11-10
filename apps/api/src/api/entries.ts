@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { requireOsm, requireOsmIfPrivateRead } from '../auth/osmAuth'
+import { requireOsmIfPrivateRead, requireWriter } from '../auth/osmAuth'
 import type { AppEnv } from '../auth/projectAuth'
 import { isoNow } from '../env'
 import { decodeCursor, encodeCursor } from '../http/cursor'
@@ -114,7 +114,7 @@ entriesApi.get('/entries/:id{.+}', requireOsmIfPrivateRead, async (c) => {
   return json(c, mapEntry(row, names, c.get('osmUser')))
 })
 
-entriesApi.put('/entries/:id{.+}', requireOsm, async (c) => {
+entriesApi.put('/entries/:id{.+}', requireWriter, async (c) => {
   const project = c.get('project')
   const user = c.get('osmUser')
   if (!user) throw new ApiError(401, 'unauthenticated', 'OSM user required')
@@ -157,7 +157,7 @@ entriesApi.put('/entries/:id{.+}', requireOsm, async (c) => {
   return json(c, entry, created ? 201 : 200)
 })
 
-entriesApi.delete('/entries/:id{.+}', requireOsm, async (c) => {
+entriesApi.delete('/entries/:id{.+}', requireWriter, async (c) => {
   const project = c.get('project')
   const user = c.get('osmUser')
   if (!user) throw new ApiError(401, 'unauthenticated', 'OSM user required')
@@ -185,7 +185,7 @@ entriesApi.delete('/entries/:id{.+}', requireOsm, async (c) => {
  * projects every id must be in the writer's namespace, and the whole batch fails
  * with 403 if one of them belongs to another creator. Deleting an absent id is not an error.
  */
-entriesApi.post('/batch', requireOsm, async (c) => {
+entriesApi.post('/batch', requireWriter, async (c) => {
   const project = c.get('project')
   const user = c.get('osmUser')
   if (!user) throw new ApiError(401, 'unauthenticated', 'OSM user required')

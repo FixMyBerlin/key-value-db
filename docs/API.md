@@ -11,7 +11,7 @@ Base URL: `https://key-value-store.fixmycity.workers.dev` (local: `http://localh
 - **OSM login**: writes need an OSM OAuth2 token (`Authorization: Bearer …`). The Worker checks it against `api.openstreetmap.org` and caches the result. Reads can be public or login-only per project.
 - **Queries**: list by tags (`match=all|any`), `updated_since`, and cursor paging. There are also tag counts.
 - **Optimistic concurrency**: `If-Match: "<version>"` on PUT.
-- **Per-project options**: owner-only writes (`write_scope`) and a hard time limit for entries (`entry_ttl_s`).
+- **Per-project options**: writes limited to a list of OSM users (`write_access = allowlist`), owner-only writes (`write_scope`), and a hard time limit for entries (`entry_ttl_s`).
 - **Batch writes**: up to 25 puts and 50 deletes in one atomic call.
 - **"Delete my data"**: removes all of the current user's entries in one project.
 - **Cleanup job every 15 min**: purges expired entries, token cache rows older than 24 h, and user records nothing refers to.
@@ -31,17 +31,17 @@ CORS: allowed methods `GET, PUT, DELETE, POST, OPTIONS`; headers `Authorization,
 | Method | Path                               | Auth            | Result                                                                                                                                                                                      |
 | ------ | ---------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/v1/health`                       | none (CORS `*`) | `{ ok, time, schema, commit }`                                                                                                                                                              |
-| GET    | `/v1/projects/{slug}/me`           | OSM             | `{ user: { osm_uid, display_name }, can_write }`                                                                                                                                            |
+| GET    | `/v1/projects/{slug}/me`           | OSM             | `{ user: { osm_uid, display_name }, can_write }`. `can_write` is `false` when the project has `write_access = allowlist` and the user is not on its list                                    |
 | DELETE | `/v1/projects/{slug}/me`           | Bearer token    | `204`. Drops the token cache row for this token (call on logout)                                                                                                                            |
-| DELETE | `/v1/projects/{slug}/me/entries`   | OSM             | `{ deleted: n }`. Deletes every entry **this user created in this project**. Other projects are not touched                                                                                 |
+| DELETE | `/v1/projects/{slug}/me/entries`   | OSM             | `{ deleted: n }`. Deletes every entry **this user created in this project**. Other projects are not touched. Also works for users who are not (or no longer) on the allowlist               |
 | GET    | `/v1/projects/{slug}/entries`      | read            | `{ items: Entry[], next_cursor }`. Query: `tag` (repeatable), `match=all\|any` (default `all`), `updated_since` (ISO), `limit` 1–500 (default 100), `cursor`                                |
 | GET    | `/v1/projects/{slug}/entries/{id}` | read            | `Entry` with `ETag: "<version>"`                                                                                                                                                            |
-| PUT    | `/v1/projects/{slug}/entries/{id}` | OSM             | `201` (created) or `200` with `Entry`. Body `{ data, tags? }`. Optional `If-Match: "<version>"` → `409 version_conflict`                                                                    |
-| DELETE | `/v1/projects/{slug}/entries/{id}` | OSM             | `204`, or `404`                                                                                                                                                                             |
-| POST   | `/v1/projects/{slug}/batch`        | OSM             | `{ put: Entry[], deleted: n }`. Body `{ put?: [{ id, data, tags? }], delete?: [id] }`. Max 25 puts and 50 deletes, ids unique, atomic, no `If-Match`. Deleting an absent id is not an error |
+| PUT    | `/v1/projects/{slug}/entries/{id}` | write           | `201` (created) or `200` with `Entry`. Body `{ data, tags? }`. Optional `If-Match: "<version>"` → `409 version_conflict`                                                                    |
+| DELETE | `/v1/projects/{slug}/entries/{id}` | write           | `204`, or `404`                                                                                                                                                                             |
+| POST   | `/v1/projects/{slug}/batch`        | write           | `{ put: Entry[], deleted: n }`. Body `{ put?: [{ id, data, tags? }], delete?: [id] }`. Max 25 puts and 50 deletes, ids unique, atomic, no `If-Match`. Deleting an absent id is not an error |
 | GET    | `/v1/projects/{slug}/tags`         | read            | `{ tags: [{ tag, count }] }`                                                                                                                                                                |
 
-"read" means public, or OSM when the project has `read_access = osm_user`.
+"read" means public, or OSM when the project has `read_access = osm_user`. "write" means OSM, and with `write_access = allowlist` also that the user is on the project's allowed users; otherwise `403 forbidden_user` with `details: { reason: "not_on_allowlist", osm_uid }`.
 
 **Entry**:
 
@@ -71,7 +71,7 @@ Set with `POST /admin/projects`, `PATCH /admin/projects/{slug}` (admin Bearer ke
 | -------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `origins`      | list                        | Browser origins allowed to call the project                                                                                                                                                                                                     |
 | `read_access`  | `public`, `osm_user`        | `osm_user`: list, get, and tags need an OSM login                                                                                                                                                                                               |
-| `write_access` | `any_osm_user`, `allowlist` | `allowlist` is accepted but **not enforced yet** (planned)                                                                                                                                                                                      |
+| `write_access` | `any_osm_user`, `allowlist` | `allowlist`: only OSM users on the project's allowed users may create, update, or delete (`403 forbidden_user`, `details.reason = not_on_allowlist`). Reads follow `read_access`. Manage the list with the tools below                          |
 | `write_scope`  | `any`, `owner`              | `owner`: entry ids must start with `<osm_uid>/`, and only the creator can change or delete an entry (`403 forbidden_user`). `any`: everyone logged in can change everything (shared editing)                                                    |
 | `entry_ttl_s`  | `null`, 60–2592000          | Hard time limit in seconds, counted from an entry's creation. Updates keep the original `expires_at`. Expired entries disappear from all reads right away and are purged within 15 min. Writing to an expired id starts a new entry (version 1) |
 | `disabled`     | `false`, `true`             | Disabled projects answer `401`                                                                                                                                                                                                                  |
@@ -79,7 +79,22 @@ Set with `POST /admin/projects`, `PATCH /admin/projects/{slug}` (admin Bearer ke
 Changing settings later:
 
 - `write_scope` `any` → `owner` on a project with data: old entries without the `<uid>/` prefix can no longer be changed or deleted through the API. `update_project` returns a warning.
+- `write_access` → `allowlist` with an empty list: nobody can write until users are added. `update_project` returns a warning. Existing entries stay.
 - `entry_ttl_s` only applies to **new** entries. Existing entries keep their `expires_at` (or never expire). `update_project` returns a warning.
+
+### Allowed users (`write_access = allowlist`)
+
+The list is stored per project by OSM user id. The display name is kept as a note from the time the user was added; the check only uses the id, so renaming on OSM changes nothing. The list exists for every project but is only enforced with `write_access = allowlist`. Changes apply to the next request.
+
+| MCP tool             | Admin REST                                          | Input                                     |
+| -------------------- | --------------------------------------------------- | ----------------------------------------- |
+| `list_allowed_users` | `GET /admin/projects/{slug}/allowed-users`          | `slug`                                    |
+| `allow_user`         | `POST /admin/projects/{slug}/allowed-users`         | `slug`, and `osm_uid` _or_ `display_name` |
+| `disallow_user`      | `DELETE /admin/projects/{slug}/allowed-users/{uid}` | `slug`, and `osm_uid` _or_ `display_name` |
+
+All three return `{ slug, write_access, allowed_users: [{ osm_uid, display_name, added_at }], note? }`; `allow_user` and `disallow_user` add `user` and `added` / `removed`. `note` says when the list is not enforced.
+
+`allow_user` looks the user up on the OSM API and returns both id and current display name. By `osm_uid` it reads the public profile. By `display_name` it reads the user's latest changeset, because the OSM API has no user search; users without changesets must be added by `osm_uid`. `disallow_user` by `display_name` first matches the stored note (case-insensitive), then asks OSM.
 
 ## Limits
 
